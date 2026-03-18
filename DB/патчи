@@ -1,0 +1,110 @@
+SET ROLE app_owner;
+
+-- Исправляем функцию: выносим row_security в заголовок
+CREATE OR REPLACE FUNCTION app.set_session_ctx(p_actor_id INT, p_segment_id INT)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = app, ref, audit, public
+SET row_security = off -- <== ТЕПЕРЬ ЭТО ЗДЕСЬ (Действует строго внутри функции)
+AS $$
+DECLARE
+    is_authorized BOOLEAN;
+    v_real_user TEXT;
+BEGIN
+    -- Убрали SET LOCAL row_security = off отсюда
+    
+    v_real_user := session_user; 
+
+    SELECT EXISTS (
+        SELECT 1
+        FROM app.employees
+        WHERE id = p_actor_id
+          AND (login = v_real_user OR v_real_user IN ('app_owner', 'postgres', 'admin'))
+          AND segment_id = p_segment_id
+    ) INTO is_authorized;
+
+    IF is_authorized THEN
+        PERFORM set_config('app.current_segment_id', p_segment_id::TEXT, true);
+        PERFORM set_config('app.current_actor_id', p_actor_id::TEXT, true);
+    ELSE
+        RAISE EXCEPTION 'Authorization failed: User "%" is not permitted to act as actor ID % in segment ID %.',
+            v_real_user, p_actor_id, p_segment_id;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- На всякий случай явно включаем защиту обратно для текущей сессии, 
+-- если она "залипла" в выключенном состоянии после прошлой ошибки
+SET row_security = on;
+
+RESET ROLE;
+
+
+SET ROLE app_owner;
+
+CREATE OR REPLACE FUNCTION app.set_session_ctx(p_actor_id INT, p_segment_id INT)
+RETURNS VOID AS $$
+DECLARE
+    is_authorized BOOLEAN;
+    v_real_user TEXT;
+BEGIN
+    SET LOCAL row_security = off;
+    v_real_user := session_user; -- Запоминаем, кто реально подключен
+
+    SELECT EXISTS (
+        SELECT 1
+        FROM app.employees
+        WHERE id = p_actor_id
+          -- РАЗРЕШАЕМ: 
+          -- 1. Если логин сотрудника совпадает с текущим пользователем
+          -- 2. ИЛИ если текущий пользователь - администратор/владелец (для тестов)
+          AND (login = v_real_user OR v_real_user IN ('app_owner', 'postgres', 'admin'))
+          AND segment_id = p_segment_id
+    ) INTO is_authorized;
+
+    IF is_authorized THEN
+        PERFORM set_config('app.current_segment_id', p_segment_id::TEXT, true);
+        PERFORM set_config('app.current_actor_id', p_actor_id::TEXT, true);
+    ELSE
+        RAISE EXCEPTION 'Authorization failed: User "%" is not permitted to act as actor ID % in segment ID %.',
+            v_real_user, p_actor_id, p_segment_id;
+    END IF;
+
+END;
+$$ LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = app, ref, audit, public;
+
+-- Возвращаем права (на всякий случай)
+GRANT EXECUTE ON FUNCTION app.set_session_ctx(INT, INT) TO app_writer, app_reader;
+
+RESET ROLE;
+
+
+CREATE OR REPLACE FUNCTION app.set_session_ctx(p_actor_id INT, p_segment_id INT)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = app, ref, audit, public
+SET row_security = off -- Важная настройка для избежания рекурсии RLS
+AS $$
+DECLARE
+    is_authorized BOOLEAN;
+    v_real_user TEXT;
+BEGIN
+    v_real_user := session_user; 
+
+    SELECT EXISTS (
+        SELECT 1
+        FROM app.employees
+        WHERE id = p_actor_id
+          AND (login = v_real_user OR v_real_user IN ('app_owner', 'postgres', 'admin'))
+          AND segment_id = p_segment_id
+    ) INTO is_authorized;
+
+    IF is_authorized THEN
+        PERFORM set_config('app.current_segment_id', p_segment_id::TEXT, true);
+        PERFORM set_config('app.current_actor_id', p_actor_id::TEXT, true);
+    ELSE
+        RAISE EXCEPTION 'Authorization failed: User "%" is not permitted to act as actor ID % in segment ID %.',
+            v_real_user, p_actor_id, p_segment_id;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;

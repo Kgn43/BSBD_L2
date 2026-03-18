@@ -1,0 +1,116 @@
+SET ROLE app_owner;
+SELECT app.set_session_ctx(1, 1);
+SET ROLE "marina.m";
+-- ============================================================
+-- ТЕСТ 1: Попытка обхода WITH CHECK OPTION
+-- ============================================================
+DO $$
+BEGIN
+    UPDATE app.v_parcels_lightweight
+    SET weight_kg = 50.0
+    WHERE id = 1;
+    RAISE EXCEPTION 'ОШИБКА: WITH CHECK OPTION был проигнорирован!';
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'УСПЕХ: Операция заблокирована. Текст ошибки: %', SQLERRM;
+END $$;
+
+RESET ROLE;
+
+----------------------------------
+
+SET ROLE app_owner;
+SELECT app.set_session_ctx(1, 1);
+SET ROLE "marina.m";
+-- ТЕСТ 2: Работа SECURITY BARRIER VIEW
+DO $$
+DECLARE
+    v_check INT;
+BEGIN
+    PERFORM count(*) FROM app.v_dept_financial_stats;
+    RAISE NOTICE '[OK] Доступ к агрегированным данным (SUM, COUNT) открыт.';
+    -- Пытаемся выбрать трек-номер, которого нет в GROUP BY
+    BEGIN
+        EXECUTE 'SELECT tracking_number FROM app.v_dept_financial_stats LIMIT 1';
+        RAISE EXCEPTION '[FAIL] Удалось запросить скрытый столбец tracking_number!';
+    EXCEPTION WHEN undefined_column THEN
+        RAISE NOTICE '[OK] Столбец tracking_number недоступен в представлении.';
+    END;
+END $$;
+
+RESET ROLE;
+
+
+
+-------------------------------
+
+SET ROLE app_owner;
+SELECT app.set_session_ctx(1, 1);
+SET ROLE "marina.m";
+-- ТЕСТ 3: Изменение строки и проверка Аудита
+DO $$
+BEGIN
+    UPDATE app.parcels
+    SET weight_kg = 1.6
+    WHERE id = 1;
+END $$;
+-- Переключаемся на Аудитора
+SET ROLE auditor;
+DO $$
+DECLARE
+    v_log_record RECORD;
+BEGIN
+    SELECT * INTO v_log_record 
+    FROM audit.row_change_log 
+    WHERE table_name = 'parcels' 
+    ORDER BY change_time DESC 
+    LIMIT 1;
+
+    IF v_log_record IS NOT NULL THEN
+        RAISE NOTICE 'УСПЕХ: Найдена запись аудита!';
+        RAISE NOTICE 'ID записи: %, Операция: %, Старый вес: %, Новый вес: %', 
+            v_log_record.record_id, 
+            v_log_record.operation,
+            v_log_record.old_data->>'weight_kg',
+            v_log_record.new_data->>'weight_kg';
+    ELSE
+        RAISE EXCEPTION 'ОШИБКА: Запись в аудите отсутствует!';
+    END IF;
+END $$;
+
+RESET ROLE;
+
+
+-- ============================================================
+-- ТЕСТ 4: Попытка удаления строки чужого сегмента (RLS)
+-- ============================================================
+-- Описание: Marina.m (Москва) пытается удалить посылку из Санкт-Петербурга.
+
+SET ROLE app_owner;
+SELECT app.set_session_ctx(1, 1); -- Возвращаем контекст Марины
+SET ROLE "marina.m";
+
+DO $$
+DECLARE
+    v_rows_deleted INT;
+    v_target_id INT := 2; -- Посылка ID 2: Отправка из Dept 2 (СПб), Прибытие в Dept 1 (Москва)
+    -- Подождите, если Прибытие в Dept 1, Марина её видит (политика OR arrival).
+    -- Нам нужна посылка, где НИ departure, НИ arrival не равны 1.
+    -- Посылка ID 4: Dep 4 (Новосибирск) -> Dep 3 (Екб). Марина (Dep 1) её видеть не должна.
+    v_alien_id INT := 4; 
+BEGIN
+    RAISE NOTICE '--- Тест 4: Попытка удаления чужой записи (RLS) ---';
+    
+    -- Пытаемся удалить новосибирскую посылку
+    DELETE FROM app.parcels WHERE id = v_alien_id;
+    
+    GET DIAGNOSTICS v_rows_deleted = ROW_COUNT;
+    
+    IF v_rows_deleted > 0 THEN
+        RAISE EXCEPTION 'ОШИБКА: RLS не сработал! Удалена чужая посылка ID %', v_alien_id;
+    ELSE
+        RAISE NOTICE 'УСПЕХ: RLS скрыл запись. Удалено строк: 0. Доступ запрещен.';
+    END IF;
+END $$;
+
+-- Возвращаемся
+RESET ROLE;

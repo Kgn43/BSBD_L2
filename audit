@@ -1,0 +1,41 @@
+SET ROLE app_owner;
+CREATE TABLE audit.function_calls (
+    id         		SERIAL PRIMARY KEY,
+    call_time       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    function_name   TEXT NOT NULL,
+    caller_role     TEXT NOT NULL,
+    input_params    JSONB,
+    success         BOOLEAN
+);
+COMMENT ON TABLE audit.function_calls IS 'Журнал вызовов SECURITY DEFINER функций';
+RESET ROLE;
+
+GRANT SELECT ON audit.function_calls TO app_owner;
+GRANT INSERT, UPDATE ON audit.function_calls TO app_owner;
+GRANT USAGE ON SEQUENCE audit.function_calls_id_seq TO app_owner;
+
+
+--------------------------------
+--Примеры
+-- Посылка отправляется из Москвы в Подольск на сортировку
+SELECT app.change_parcel_status(
+    'RR000000001RU',         -- трекинг-номер
+    'В пути',                -- новый статус
+    'marina.m',              -- оператор
+    1                        -- сегмент Москва -> Подольск СЦ
+) AS status_change_result;
+
+-- Тяжелая посылка из Екатеринбурга в Новосибирск
+SELECT app.register_parcel(
+    'victoria.b',            -- оператор из Екатеринбурга
+    'Петров', 'Дмитрий',     -- отправитель
+    '+79028765432',
+    'г. Екатеринбург, ул. Луначарского, д. 83, кв. 7',
+    'Сидорова', 'Ольга',     -- получатель
+    '+79031234567', 
+    'г. Новосибирск, ул. Кирова, д. 25, кв. 33',
+    3,                       -- отделение в Екатеринбурге  
+    4,                       -- отделение в Новосибирске
+    15.750,                  -- вес 15.75 кг
+    7500.50                  -- объявленная стоимость
+) AS tracking_number;

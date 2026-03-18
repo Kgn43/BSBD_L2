@@ -1,0 +1,6 @@
+# Используем официальный образ PostgreSQL 16 в качестве основы
+FROM postgres:18
+
+# Устанавливаем pgaudit из пакетов Debian
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-18-pgaudit

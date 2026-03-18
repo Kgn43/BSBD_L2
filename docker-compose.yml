@@ -1,0 +1,48 @@
+networks:
+  app_bridge_net:
+    driver: bridge
+
+volumes:
+  db_volume:
+
+services:
+
+  db:
+    build: 
+      ./DB
+    container_name:
+      db_postgreSQL_BD1
+    env_file:
+      - ./DB/.env
+    volumes:
+      - db_volume:/var/lib/postgresql/
+      - ./DB/init.sql:/docker-entrypoint-initdb.d/init.sql 
+      - ./DB/sql_init:/docker-entrypoint-initdb.d
+    command: postgres -c shared_preload_libraries=pgaudit -c pgaudit.log='session,ddl,write'
+    networks:
+      - app_bridge_net
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  pgadmin:
+    image:
+      dpage/pgadmin4:latest  
+    container_name:
+      pgAdmin_BD1
+    env_file:
+      - ./pgAdmin/.env
+    volumes:
+      - ./pgAdmin/server.json:/pgadmin4/servers.json
+    ports:
+      - "8888:80"
+    networks:
+      - app_bridge_net
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
