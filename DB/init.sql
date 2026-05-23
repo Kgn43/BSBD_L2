@@ -191,7 +191,7 @@ CREATE TABLE app.clients (
     last_name VARCHAR(100) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     middle_name VARCHAR(100),
-    phone bytea NOT NULL,
+    phone VARCHAR(20) NOT NULL,
     address text NOT NULL
 );
 COMMENT ON TABLE app.clients IS 'Данные клиентов';
@@ -272,13 +272,13 @@ CREATE TABLE app.parcel_movements (
 );
 COMMENT ON TABLE app.parcel_movements IS 'История перемещений посылок';
 
-
+/*
 CREATE INDEX idx_employees_segment_id ON app.employees(segment_id);
 CREATE INDEX idx_parcel_movements_rls_segment_id ON app.parcel_movements(rls_segment_id);
 CREATE INDEX idx_parcel_movements_parcel_rls_segment ON app.parcel_movements(parcel_id, rls_segment_id);
 CREATE INDEX idx_parcels_departure_department_id ON app.parcels(departure_department_id);
 CREATE INDEX idx_parcels_arrival_department_id ON app.parcels(arrival_department_id);
-
+*/
 RESET ROLE;
 
 -----------------------------------------------------------------------------
@@ -343,17 +343,17 @@ SELECT CONCAT(city, ', ', address), id FROM app.departments;
 
 
 INSERT INTO app.clients (last_name, first_name, middle_name, phone, address) VALUES
-('Иванов', 'Иван', 'Иванович', pgp_sym_encrypt('89161234567', current_setting('session.encryption_key')), pgp_sym_encrypt('г. Москва, ул. Ленина, д. 1, кв. 10', current_setting('session.encryption_key'))),
-('Петрова', 'Анна', 'Сергеевна', pgp_sym_encrypt('89267654321', current_setting('session.encryption_key')), pgp_sym_encrypt('г. Москва, ул. Тверская, д. 5, кв. 25', current_setting('session.encryption_key'))),
-('Сидоров', 'Петр', 'Николаевич', pgp_sym_encrypt('89031112233', current_setting('session.encryption_key')), pgp_sym_encrypt('г. Санкт-Петербург, Невский пр-т, д. 100, кв. 1', current_setting('session.encryption_key'))),
-('Смирнова', 'Ольга', 'Владимировна', pgp_sym_encrypt('89119876543', current_setting('session.encryption_key')), pgp_sym_encrypt('г. Санкт-Петербург, ул. Садовая, д. 22, кв. 44', current_setting('session.encryption_key'))),
-('Кузнецов', 'Дмитрий', 'Алексеевич', pgp_sym_encrypt('89995556677', current_setting('session.encryption_key')), pgp_sym_encrypt('г. Екатеринбург, ул. Малышева, д. 80, кв. 12', current_setting('session.encryption_key'))),
-('Васильева', 'Екатерина', 'Игоревна', pgp_sym_encrypt('89823334455', current_setting('session.encryption_key')), pgp_sym_encrypt('г. Екатеринбург, ул. 8 Марта, д. 5, кв. 3', current_setting('session.encryption_key'))),
-('Попов', 'Михаил', 'Юрьевич', pgp_sym_encrypt('89051239876', current_setting('session.encryption_key')), pgp_sym_encrypt('г. Новосибирск, Красный пр-т, д. 65, кв. 56', current_setting('session.encryption_key'))),
-('Лебедева', 'Мария', 'Павловна', pgp_sym_encrypt('89135551122', current_setting('session.encryption_key')), pgp_sym_encrypt('г. Новосибирск, ул. Вокзальная магистраль, д. 1, кв. 8', current_setting('session.encryption_key'))),
-('Козлов', 'Артем', 'Викторович', pgp_sym_encrypt('89257778899', current_setting('session.encryption_key')), pgp_sym_encrypt('г. Казань, ул. Баумана, д. 40, кв. 2', current_setting('session.encryption_key'))),
-('Новикова', 'Алиса', 'Денисовна', pgp_sym_encrypt('89172345678', current_setting('session.encryption_key')), pgp_sym_encrypt('г. Казань, ул. Петербургская, д. 9, кв. 7', current_setting('session.encryption_key'))),
-('Федоров', 'Роман', 'Григорьевич', pgp_sym_encrypt('89261122334', current_setting('session.encryption_key')), pgp_sym_encrypt('г. Москва, ул. Арбат, д. 15, кв. 99', current_setting('session.encryption_key')));
+('Иванов', 'Иван', 'Иванович', '89161234567', pgp_sym_encrypt('г. Москва, ул. Ленина, д. 1, кв. 10', current_setting('session.encryption_key'))),
+('Петрова', 'Анна', 'Сергеевна', '89267654321', pgp_sym_encrypt('г. Москва, ул. Тверская, д. 5, кв. 25', current_setting('session.encryption_key'))),
+('Сидоров', 'Петр', 'Николаевич', '89031112233', pgp_sym_encrypt('г. Санкт-Петербург, Невский пр-т, д. 100, кв. 1', current_setting('session.encryption_key'))),
+('Смирнова', 'Ольга', 'Владимировна', '89119876543', pgp_sym_encrypt('г. Санкт-Петербург, ул. Садовая, д. 22, кв. 44', current_setting('session.encryption_key'))),
+('Кузнецов', 'Дмитрий', 'Алексеевич', '89995556677', pgp_sym_encrypt('г. Екатеринбург, ул. Малышева, д. 80, кв. 12', current_setting('session.encryption_key'))),
+('Васильева', 'Екатерина', 'Игоревна', '89823334455', pgp_sym_encrypt('г. Екатеринбург, ул. 8 Марта, д. 5, кв. 3', current_setting('session.encryption_key'))),
+('Попов', 'Михаил', 'Юрьевич', '89051239876', pgp_sym_encrypt('г. Новосибирск, Красный пр-т, д. 65, кв. 56', current_setting('session.encryption_key'))),
+('Лебедева', 'Мария', 'Павловна', '89135551122', pgp_sym_encrypt('г. Новосибирск, ул. Вокзальная магистраль, д. 1, кв. 8', current_setting('session.encryption_key'))),
+('Козлов', 'Артем', 'Викторович', '89257778899', pgp_sym_encrypt('г. Казань, ул. Баумана, д. 40, кв. 2', current_setting('session.encryption_key'))),
+('Новикова', 'Алиса', 'Денисовна', '89172345678', pgp_sym_encrypt('г. Казань, ул. Петербургская, д. 9, кв. 7', current_setting('session.encryption_key'))),
+('Федоров', 'Роман', 'Григорьевич', '89261122334', pgp_sym_encrypt('г. Москва, ул. Арбат, д. 15, кв. 99', current_setting('session.encryption_key')));
 
 
 INSERT INTO app.employees (last_name, first_name, department_id, segment_id, position_id, status_id, login, password_hash) VALUES

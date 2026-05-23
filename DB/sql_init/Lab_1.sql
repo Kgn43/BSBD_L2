@@ -33,10 +33,10 @@ SELECT
     (ARRAY['Иванов', 'Петров', 'Сидоров', 'Кузнецов', 'Попов', 'Васильев', 'Павлов', 'Смирнов', 'Михайлов', 'Новиков'])[floor(random() * 10 + 1)],
     (ARRAY['Александр', 'Дмитрий', 'Сергей', 'Андрей', 'Алексей', 'Максим', 'Евгений', 'Иван', 'Михаил', 'Николай'])[floor(random() * 10 + 1)],
     'Иванович',
-    pgp_sym_encrypt('89' || (100000000 + floor(random() * 900000000))::text, current_setting('session.encryption_key')),
+   '89' || (100000000 + floor(random() * 900000000))::text,
     pgp_sym_encrypt('г. Почтовый, ул. Примерная, д. ' || floor(random() * 150 + 1)::text, current_setting('session.encryption_key'))
-FROM generate_series(1, 100);
-
+FROM generate_series(1, 100000);
+/*
 --Создание 10 000 посылок
 WITH ids AS (
     SELECT 
@@ -64,7 +64,7 @@ SELECT
     timestamp '2025-01-01' + random() * (timestamp '2026-02-28' - timestamp '2025-01-01')
 FROM generate_series(1, 10000) AS s(id), ids;
 
-
+*/
 --Копирование данных
 INSERT INTO app.parcels_partitioned (
     id, tracking_number, sender_client_id, recipient_client_id, 
@@ -76,7 +76,7 @@ SELECT
     departure_department_id, arrival_department_id, 
     weight_kg, declared_value, created_at 
 FROM app.parcels;
-
+/*
 --Начало задачи 2
 
 --LTV
@@ -241,3 +241,5 @@ churned_clients AS (
 UPDATE app.clients
 SET reactivation_bonus_rub = 500.00
 WHERE id IN (SELECT sender_client_id FROM churned_clients);
+
+*/
